@@ -10,7 +10,7 @@
 <!-- Paste a link to your commits for this week. The easiest way: go to your repo on GitHub,
      click "commits", and copy the URL after filtering by your name or branch. -->
 
-
+https://github.com/Issa-Ismail-Ali/media-tracker-android/commits/week-01/
 **Link:**
 
 ---
@@ -23,6 +23,7 @@
 
 **Reviewed:** *(pod mate's name)* Kenan Port
 **Link to my review:**
+https://github.com/Zabzar22/media-tracker-android/pull/1#pullrequestreview-4341965488
 
 ### What I Looked At
 
@@ -66,7 +67,7 @@
 
 <!-- Did you help a pod mate work through something? Did you discover something cool or frustrating?
      Did something from a previous week finally click? This is a good place to put it. -->
-
+        A podmate helped me learn how to commit and do pull requests.
 ---
 
 ## Rubric
