@@ -89,7 +89,8 @@
 
     <!-- Errors -->
     <string name="error_empty_credentials">Please enter your email and password.</string>
-
+    <string name="error_empty_fields">Please fill in all fields.</string>
+    <string name="error_passwords_mismatch">Passwords do not match.</string>
     <!-- Media -->
     <string name="media_unknown_author">Unknown Author</string>
     <string name="media_unknown_director">Unknown Director</string>
