@@ -9,7 +9,10 @@ import retrofit2.Retrofit
 
 object RetrofitInstance {
 
-    private val json = Json { ignoreUnknownKeys = true }
+    private val json = Json {
+        ignoreUnknownKeys = true
+        encodeDefaults = true
+    }
 
     private val client = OkHttpClient.Builder()
         .addInterceptor(HttpLoggingInterceptor().apply {
@@ -20,7 +23,9 @@ object RetrofitInstance {
     private val retrofit = Retrofit.Builder()
         .baseUrl(ApiConstants.BASE_URL)
         .client(client)
-        .addConverterFactory(json.asConverterFactory("application/json".toMediaType()))
+        .addConverterFactory(
+            json.asConverterFactory("application/json; charset=utf-8".toMediaType())
+        )
         .build()
 
     val userApiService: UserApiService = retrofit.create(UserApiService::class.java)

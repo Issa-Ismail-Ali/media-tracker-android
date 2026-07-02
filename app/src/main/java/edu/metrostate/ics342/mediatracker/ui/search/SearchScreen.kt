@@ -5,18 +5,20 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.MenuBook
+import androidx.compose.material.icons.outlined.Movie
+import androidx.compose.material.icons.outlined.Search
+import androidx.compose.material.icons.outlined.Tv
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import coil.compose.AsyncImage
 import edu.metrostate.ics342.mediatracker.R
 import edu.metrostate.ics342.mediatracker.data.model.Media
 import edu.metrostate.ics342.mediatracker.data.model.creatorCredit
@@ -31,60 +33,80 @@ fun SearchScreen(
     val selectedType by viewModel.selectedType.collectAsState()
     val results by viewModel.results.collectAsState()
 
-    Column(modifier = Modifier.fillMaxSize()) {
-        TopAppBar(title = { Text(stringResource(R.string.nav_search)) })
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = 24.dp)
+    ) {
+        Spacer(Modifier.height(32.dp))
+
+        Text(
+            text = stringResource(R.string.nav_search),
+            style = MaterialTheme.typography.headlineMedium,
+            color = MaterialTheme.colorScheme.onSurface
+        )
+
+        Spacer(Modifier.height(24.dp))
 
         OutlinedTextField(
             value = query,
             onValueChange = viewModel::onQueryChange,
-            label = { Text("Search") },
+            placeholder = { Text("Search books, movies, shows...") },
+            leadingIcon = {
+                Icon(
+                    imageVector = Icons.Outlined.Search,
+                    contentDescription = null
+                )
+            },
             singleLine = true,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp)
+            shape = RoundedCornerShape(28.dp),
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedBorderColor = MaterialTheme.colorScheme.primary,
+                unfocusedBorderColor = MaterialTheme.colorScheme.outline,
+                focusedContainerColor = MaterialTheme.colorScheme.surface,
+                unfocusedContainerColor = MaterialTheme.colorScheme.surface
+            ),
+            modifier = Modifier.fillMaxWidth()
         )
 
-        Spacer(Modifier.height(8.dp))
+        Spacer(Modifier.height(16.dp))
 
-        Row(
-            modifier = Modifier.padding(horizontal = 16.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            FilterChip(
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            SearchFilterChip(
+                text = "All",
                 selected = selectedType == null,
-                onClick = { viewModel.onTypeSelected(null) },
-                label = { Text("All") }
+                onClick = { viewModel.onTypeSelected(null) }
             )
-
-            FilterChip(
+            SearchFilterChip(
+                text = "Books",
                 selected = selectedType == "book",
-                onClick = { viewModel.onTypeSelected("book") },
-                label = { Text("Books") }
+                onClick = { viewModel.onTypeSelected("book") }
             )
-
-            FilterChip(
+            SearchFilterChip(
+                text = "Movies",
                 selected = selectedType == "movie",
-                onClick = { viewModel.onTypeSelected("movie") },
-                label = { Text("Movies") }
+                onClick = { viewModel.onTypeSelected("movie") }
             )
-
-            FilterChip(
+            SearchFilterChip(
+                text = "Shows",
                 selected = selectedType == "show",
-                onClick = { viewModel.onTypeSelected("show") },
-                label = { Text("Shows") }
+                onClick = { viewModel.onTypeSelected("show") }
             )
         }
 
+        Spacer(Modifier.height(16.dp))
+
         Text(
             text = stringResource(R.string.search_results_count, results.size),
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
             style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
 
+        Spacer(Modifier.height(8.dp))
+
         LazyColumn(
-            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+            contentPadding = PaddingValues(bottom = 16.dp)
         ) {
             itemsIndexed(results) { index, media ->
                 if (index >= results.lastIndex - 3) {
@@ -101,62 +123,68 @@ fun SearchScreen(
 }
 
 @Composable
-private fun SearchResultCard(media: Media, onClick: () -> Unit) {
+private fun SearchFilterChip(
+    text: String,
+    selected: Boolean,
+    onClick: () -> Unit
+) {
+    FilterChip(
+        selected = selected,
+        onClick = onClick,
+        label = {
+            Text(
+                text = text,
+                style = MaterialTheme.typography.labelMedium
+            )
+        },
+        shape = RoundedCornerShape(8.dp),
+        colors = FilterChipDefaults.filterChipColors(
+            selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+            selectedLabelColor = MaterialTheme.colorScheme.primary,
+            containerColor = MaterialTheme.colorScheme.surface,
+            labelColor = MaterialTheme.colorScheme.onSurfaceVariant
+        ),
+        border = FilterChipDefaults.filterChipBorder(
+            enabled = true,
+            selected = selected,
+            borderColor = MaterialTheme.colorScheme.outline,
+            selectedBorderColor = MaterialTheme.colorScheme.primaryContainer
+        )
+    )
+}
+
+@Composable
+private fun SearchResultCard(
+    media: Media,
+    onClick: () -> Unit
+) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .clickable { onClick() },
         shape = RoundedCornerShape(12.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        )
     ) {
         Row(
-            modifier = Modifier.padding(12.dp),
+            modifier = Modifier.padding(vertical = 12.dp, horizontal = 8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Box(
-                modifier = Modifier
-                    .size(64.dp, 90.dp)
-                    .clip(RoundedCornerShape(6.dp)),
-                contentAlignment = Alignment.Center
-            ) {
-                if (media.coverUrl != null) {
-                    AsyncImage(
-                        model = media.coverUrl,
-                        contentDescription = media.title,
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier.fillMaxSize()
-                    )
-                } else {
-                    Surface(
-                        color = MaterialTheme.colorScheme.surfaceVariant,
-                        modifier = Modifier.fillMaxSize()
-                    ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            Text(
-                                when (media.mediaType) {
-                                    "book" -> "📖"
-                                    "movie" -> "🎬"
-                                    "show" -> "📺"
-                                    else -> "?"
-                                },
-                                style = MaterialTheme.typography.titleLarge
-                            )
-                        }
-                    }
-                }
-            }
+            MediaTypeIcon(mediaType = media.mediaType)
 
-            Spacer(Modifier.width(12.dp))
+            Spacer(Modifier.width(16.dp))
 
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = media.title,
                     style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurface,
                     maxLines = 2
                 )
 
-                Spacer(Modifier.height(2.dp))
+                Spacer(Modifier.height(4.dp))
 
                 Text(
                     text = media.creatorCredit(LocalContext.current),
@@ -164,24 +192,48 @@ private fun SearchResultCard(media: Media, onClick: () -> Unit) {
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
 
-                Spacer(Modifier.height(4.dp))
+                Spacer(Modifier.height(6.dp))
 
                 Text(
                     text = buildString {
+                        if (media.averageRating > 0f) {
+                            append("★ ")
+                            append(media.averageRating)
+                            append(" · ")
+                        }
                         append(media.mediaType.replaceFirstChar { it.uppercase() })
                         media.publishedYear?.let {
                             append(" · ")
                             append(it)
                         }
-                        if (media.averageRating > 0f) {
-                            append(" · ★ ")
-                            append(media.averageRating)
-                        }
                     },
                     style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.tertiary
                 )
             }
         }
     }
+}
+
+@Composable
+private fun MediaTypeIcon(mediaType: String) {
+    val icon: ImageVector = when (mediaType) {
+        "book" -> Icons.Outlined.MenuBook
+        "movie" -> Icons.Outlined.Movie
+        "show" -> Icons.Outlined.Tv
+        else -> Icons.Outlined.Search
+    }
+
+    val tint = when (mediaType) {
+        "movie" -> MaterialTheme.colorScheme.secondary
+        "show" -> MaterialTheme.colorScheme.tertiary
+        else -> MaterialTheme.colorScheme.primary
+    }
+
+    Icon(
+        imageVector = icon,
+        contentDescription = mediaType,
+        tint = tint,
+        modifier = Modifier.size(28.dp)
+    )
 }

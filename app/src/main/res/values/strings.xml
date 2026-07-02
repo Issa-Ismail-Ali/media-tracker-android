@@ -101,4 +101,7 @@
     <string name="media_unknown_director">Unknown Director</string>
     <string name="media_unknown_creator">Unknown Creator</string>
 
+    <!-- Search -->
+    <string name="search_results_count">%1$d results</string>
+
 </resources>
