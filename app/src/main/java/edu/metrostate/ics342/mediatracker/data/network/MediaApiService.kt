@@ -11,23 +11,14 @@ import retrofit2.http.POST
 import retrofit2.http.Path
 import retrofit2.http.Query
 
-interface UserApiService {
-
-    @POST("users")
-    suspend fun createUser(
-        @Body body: RegisterRequest
-    ): Response<Unit>
-
-    @POST("tokens")
-    suspend fun login(
-        @Body body: LoginRequest
-    ): Response<AuthResponse>
+interface MediaApiService {
 
     @GET("media")
     suspend fun searchMedia(
-        @Query("query") query: String,
+        @Query("query") query: String? = null,
         @Query("type") type: String? = null,
-        @Query("start") start: Int = 0
+        @Query("limit") limit: Int = 20,
+        @Query("after") after: String? = null
     ): Response<List<Media>>
 
     @GET("media/{id}")
