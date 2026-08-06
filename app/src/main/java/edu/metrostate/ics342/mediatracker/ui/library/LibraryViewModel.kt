@@ -27,18 +27,20 @@ sealed interface LibraryUiState {
 }
 
 class LibraryViewModel(
-    application: Application
+    application: Application,
+    private val repository: DefaultMediaRepository
 ) : AndroidViewModel(application) {
 
-    private val sessionRepository =
-        DefaultSessionRepository(
-            application.applicationContext
+    constructor(
+        application: Application
+    ) : this(
+        application = application,
+        repository = DefaultMediaRepository(
+            DefaultSessionRepository(
+                application.applicationContext
+            )
         )
-
-    private val repository =
-        DefaultMediaRepository(
-            sessionRepository
-        )
+    )
 
     private val _uiState =
         MutableStateFlow<LibraryUiState>(
@@ -53,8 +55,7 @@ class LibraryViewModel(
             LibraryStatus.WANT_TO
         )
 
-    val selectedStatus:
-            StateFlow<LibraryStatus> =
+    val selectedStatus: StateFlow<LibraryStatus> =
         _selectedStatus.asStateFlow()
 
     init {
@@ -109,12 +110,12 @@ class LibraryViewModel(
                 it.mediaId == mediaId
             } ?: return
 
+        // Optimistic update: remove first.
         _uiState.value =
             current.copy(
-                items =
-                    current.items.filter {
-                        it.mediaId != mediaId
-                    },
+                items = current.items.filter {
+                    it.mediaId != mediaId
+                },
                 actionError = null
             )
 
@@ -128,10 +129,10 @@ class LibraryViewModel(
                     _uiState.value as? LibraryUiState.Success
                         ?: return@launch
 
+                // Roll back if the network request fails.
                 _uiState.value =
                     latest.copy(
-                        items =
-                            latest.items + backup,
+                        items = latest.items + backup,
                         actionError =
                             "Couldn't remove item. Try again."
                     )
@@ -152,17 +153,12 @@ class LibraryViewModel(
                 it.mediaId == mediaId
             } ?: return
 
-        /*
-         * Because the screen is filtered by status,
-         * changing the status removes the item immediately
-         * from the current tab.
-         */
+        // Remove immediately from the current status tab.
         _uiState.value =
             current.copy(
-                items =
-                    current.items.filter {
-                        it.mediaId != mediaId
-                    },
+                items = current.items.filter {
+                    it.mediaId != mediaId
+                },
                 actionError = null
             )
 
@@ -177,10 +173,10 @@ class LibraryViewModel(
                     _uiState.value as? LibraryUiState.Success
                         ?: return@launch
 
+                // Restore the item if the network call fails.
                 _uiState.value =
                     latest.copy(
-                        items =
-                            latest.items + originalItem,
+                        items = latest.items + originalItem,
                         actionError =
                             "Couldn't change status. Try again."
                     )
