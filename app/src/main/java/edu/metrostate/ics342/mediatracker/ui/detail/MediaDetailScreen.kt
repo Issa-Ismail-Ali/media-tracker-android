@@ -24,6 +24,7 @@ import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material.icons.outlined.MoreVert
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -34,8 +35,10 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -43,6 +46,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -82,14 +88,16 @@ fun MediaDetailScreen(
                             imageVector =
                                 Icons.AutoMirrored.Outlined.ArrowBack,
                             contentDescription =
-                                stringResource(R.string.action_back)
+                                stringResource(
+                                    R.string.action_back
+                                )
                         )
                     }
                 },
                 actions = {
                     IconButton(
                         onClick = {
-                            // Overflow actions can be added later.
+                            // More options can be added later.
                         }
                     ) {
                         Icon(
@@ -105,21 +113,29 @@ fun MediaDetailScreen(
             )
         }
     ) { innerPadding ->
+
         when (val state = uiState) {
+
             MediaDetailUiState.Loading -> {
                 LoadingContent(
                     modifier =
-                        Modifier.padding(innerPadding)
+                        Modifier.padding(
+                            innerPadding
+                        )
                 )
             }
 
             is MediaDetailUiState.Error -> {
                 ErrorContent(
                     message = state.message,
-                    onRetry = viewModel::retry,
-                    onNavigateBack = onNavigateBack,
+                    onRetry =
+                        viewModel::retry,
+                    onNavigateBack =
+                        onNavigateBack,
                     modifier =
-                        Modifier.padding(innerPadding)
+                        Modifier.padding(
+                            innerPadding
+                        )
                 )
             }
 
@@ -130,11 +146,17 @@ fun MediaDetailScreen(
                         viewModel::addToLibrary,
                     onSaveFavorite =
                         viewModel::addFavorite,
+                    onSaveQuote =
+                        viewModel::saveQuote,
                     onWriteReview = {
-                        onWriteReview(mediaId)
+                        onWriteReview(
+                            mediaId
+                        )
                     },
                     modifier =
-                        Modifier.padding(innerPadding)
+                        Modifier.padding(
+                            innerPadding
+                        )
                 )
             }
         }
@@ -146,8 +168,10 @@ private fun LoadingContent(
     modifier: Modifier = Modifier
 ) {
     Box(
-        modifier = modifier.fillMaxSize(),
-        contentAlignment = Alignment.Center
+        modifier =
+            modifier.fillMaxSize(),
+        contentAlignment =
+            Alignment.Center
     ) {
         CircularProgressIndicator()
     }
@@ -171,36 +195,44 @@ private fun ErrorContent(
     ) {
         Text(
             text = message,
-            textAlign = TextAlign.Center,
+            textAlign =
+                TextAlign.Center,
             style =
-                MaterialTheme.typography.bodyLarge
+                MaterialTheme
+                    .typography
+                    .bodyLarge
         )
 
         Spacer(
-            modifier = Modifier.height(16.dp)
+            modifier =
+                Modifier.height(16.dp)
         )
 
         Button(
             onClick = onRetry
         ) {
             Text(
-                text = stringResource(
-                    R.string.detail_retry
-                )
+                text =
+                    stringResource(
+                        R.string.detail_retry
+                    )
             )
         }
 
         Spacer(
-            modifier = Modifier.height(8.dp)
+            modifier =
+                Modifier.height(8.dp)
         )
 
         OutlinedButton(
-            onClick = onNavigateBack
+            onClick =
+                onNavigateBack
         ) {
             Text(
-                text = stringResource(
-                    R.string.action_back
-                )
+                text =
+                    stringResource(
+                        R.string.action_back
+                    )
             )
         }
     }
@@ -211,10 +243,46 @@ private fun MediaDetailSuccessContent(
     state: MediaDetailUiState.Success,
     onAddToLibrary: () -> Unit,
     onSaveFavorite: () -> Unit,
+    onSaveQuote:
+        (
+        String,
+        String,
+        Boolean
+    ) -> Unit,
     onWriteReview: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val media = state.media
+
+    var showQuoteDialog by remember {
+        mutableStateOf(false)
+    }
+
+    if (showQuoteDialog) {
+        AddQuoteDialog(
+            isSaving =
+                state.isSavingQuote,
+            message =
+                state.quoteMessage,
+            onDismiss = {
+                if (!state.isSavingQuote) {
+                    showQuoteDialog =
+                        false
+                }
+            },
+            onSave = {
+                    quoteText,
+                    pageNumber,
+                    isPublic ->
+
+                onSaveQuote(
+                    quoteText,
+                    pageNumber,
+                    isPublic
+                )
+            }
+        )
+    }
 
     Column(
         modifier = modifier
@@ -229,98 +297,419 @@ private fun MediaDetailSuccessContent(
         horizontalAlignment =
             Alignment.CenterHorizontally
     ) {
+
         CoverImage(media)
 
         Spacer(
-            modifier = Modifier.height(20.dp)
+            modifier =
+                Modifier.height(20.dp)
         )
 
         Text(
             text = media.title,
             style =
-                MaterialTheme.typography.headlineSmall,
-            fontWeight = FontWeight.Bold,
-            textAlign = TextAlign.Center
+                MaterialTheme
+                    .typography
+                    .headlineSmall,
+            fontWeight =
+                FontWeight.Bold,
+            textAlign =
+                TextAlign.Center
         )
 
         Spacer(
-            modifier = Modifier.height(6.dp)
+            modifier =
+                Modifier.height(6.dp)
         )
 
         Text(
-            text = creatorCredit(media),
+            text =
+                creatorCredit(
+                    media
+                ),
             style =
-                MaterialTheme.typography.bodyLarge,
+                MaterialTheme
+                    .typography
+                    .bodyLarge,
             color =
-                MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign = TextAlign.Center
+                MaterialTheme
+                    .colorScheme
+                    .onSurfaceVariant,
+            textAlign =
+                TextAlign.Center
         )
 
         Spacer(
-            modifier = Modifier.height(12.dp)
+            modifier =
+                Modifier.height(12.dp)
         )
 
         RatingRow(media)
 
         Spacer(
-            modifier = Modifier.height(20.dp)
+            modifier =
+                Modifier.height(20.dp)
         )
 
         ActionButtons(
             state = state,
-            onAddToLibrary = onAddToLibrary,
-            onSaveFavorite = onSaveFavorite
+            onAddToLibrary =
+                onAddToLibrary,
+            onSaveFavorite =
+                onSaveFavorite
         )
 
+        /*
+         * NEW: Add Quote button
+         */
         Spacer(
-            modifier = Modifier.height(28.dp)
+            modifier =
+                Modifier.height(12.dp)
+        )
+
+        OutlinedButton(
+            onClick = {
+                showQuoteDialog = true
+            },
+            modifier =
+                Modifier.fillMaxWidth()
+        ) {
+            Text(
+                text = "Add Quote"
+            )
+        }
+
+        Spacer(
+            modifier =
+                Modifier.height(28.dp)
         )
 
         AboutSection(media)
 
         Spacer(
-            modifier = Modifier.height(24.dp)
+            modifier =
+                Modifier.height(24.dp)
         )
 
         StatGrid(media)
 
         Spacer(
-            modifier = Modifier.height(28.dp)
+            modifier =
+                Modifier.height(28.dp)
         )
 
         ReviewsHeader(
-            reviewCount = media.ratingCount ?: 0,
-            onWriteReview = onWriteReview
+            reviewCount =
+                media.ratingCount ?: 0,
+            onWriteReview =
+                onWriteReview
         )
 
         Spacer(
-            modifier = Modifier.height(12.dp)
+            modifier =
+                Modifier.height(12.dp)
         )
 
         ReviewCard(
-            username = "alex_reader",
-            timestamp = "2 days ago",
+            username =
+                "alex_reader",
+            timestamp =
+                "2 days ago",
             rating = 5,
             reviewText =
                 "I really enjoyed this one. The story kept me interested from beginning to end."
         )
 
         Spacer(
-            modifier = Modifier.height(12.dp)
+            modifier =
+                Modifier.height(12.dp)
         )
 
         ReviewCard(
-            username = "media_fan",
-            timestamp = "1 week ago",
+            username =
+                "media_fan",
+            timestamp =
+                "1 week ago",
             rating = 4,
             reviewText =
                 "A strong recommendation overall. The characters and pacing were especially good."
         )
 
         Spacer(
-            modifier = Modifier.height(32.dp)
+            modifier =
+                Modifier.height(32.dp)
         )
     }
+}
+
+/*
+ * NEW: Quote Dialog
+ */
+@Composable
+private fun AddQuoteDialog(
+    isSaving: Boolean,
+    message: String?,
+    onDismiss: () -> Unit,
+    onSave:
+        (
+        String,
+        String,
+        Boolean
+    ) -> Unit
+) {
+    var quoteText by remember {
+        mutableStateOf("")
+    }
+
+    var pageNumber by remember {
+        mutableStateOf("")
+    }
+
+    var isPublic by remember {
+        mutableStateOf(false)
+    }
+
+    AlertDialog(
+        onDismissRequest = {
+            if (!isSaving) {
+                onDismiss()
+            }
+        },
+        title = {
+            Text(
+                text = "Add Quote"
+            )
+        },
+        text = {
+            Column(
+                verticalArrangement =
+                    Arrangement.spacedBy(
+                        12.dp
+                    )
+            ) {
+
+                /*
+                 * Quote text
+                 */
+                OutlinedTextField(
+                    value = quoteText,
+                    onValueChange = {
+                            newText ->
+
+                        if (
+                            newText.length <=
+                            500
+                        ) {
+                            quoteText =
+                                newText
+                        }
+                    },
+                    label = {
+                        Text(
+                            text =
+                                "Quote"
+                        )
+                    },
+                    supportingText = {
+                        Text(
+                            text =
+                                "${quoteText.length}/500"
+                        )
+                    },
+                    modifier =
+                        Modifier
+                            .fillMaxWidth(),
+                    minLines = 3,
+                    maxLines = 6,
+                    enabled =
+                        !isSaving
+                )
+
+                /*
+                 * Optional page number
+                 */
+                OutlinedTextField(
+                    value =
+                        pageNumber,
+                    onValueChange = {
+                            newValue ->
+
+                        if (
+                            newValue.isBlank() ||
+                            newValue.all {
+                                it.isDigit()
+                            }
+                        ) {
+                            pageNumber =
+                                newValue
+                        }
+                    },
+                    label = {
+                        Text(
+                            text =
+                                "Page number (optional)"
+                        )
+                    },
+                    singleLine = true,
+                    modifier =
+                        Modifier
+                            .fillMaxWidth(),
+                    enabled =
+                        !isSaving
+                )
+
+                /*
+                 * Public/private toggle
+                 */
+                Row(
+                    modifier =
+                        Modifier
+                            .fillMaxWidth(),
+                    verticalAlignment =
+                        Alignment
+                            .CenterVertically,
+                    horizontalArrangement =
+                        Arrangement
+                            .SpaceBetween
+                ) {
+                    Column(
+                        modifier =
+                            Modifier.weight(
+                                1f
+                            )
+                    ) {
+                        Text(
+                            text =
+                                "Public"
+                        )
+
+                        Text(
+                            text =
+                                if (
+                                    isPublic
+                                ) {
+                                    "Other users can see this quote"
+                                } else {
+                                    "Only you can see this quote"
+                                },
+                            style =
+                                MaterialTheme
+                                    .typography
+                                    .bodySmall,
+                            color =
+                                MaterialTheme
+                                    .colorScheme
+                                    .onSurfaceVariant
+                        )
+                    }
+
+                    Spacer(
+                        modifier =
+                            Modifier.width(
+                                12.dp
+                            )
+                    )
+
+                    Switch(
+                        checked =
+                            isPublic,
+                        onCheckedChange = {
+                            isPublic = it
+                        },
+                        enabled =
+                            !isSaving
+                    )
+                }
+
+                /*
+                 * Success/error message
+                 */
+                if (
+                    !message.isNullOrBlank()
+                ) {
+                    Text(
+                        text = message,
+                        style =
+                            MaterialTheme
+                                .typography
+                                .bodySmall,
+                        color =
+                            if (
+                                message ==
+                                "Quote saved."
+                            ) {
+                                MaterialTheme
+                                    .colorScheme
+                                    .primary
+                            } else {
+                                MaterialTheme
+                                    .colorScheme
+                                    .error
+                            }
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    onSave(
+                        quoteText,
+                        pageNumber,
+                        isPublic
+                    )
+                },
+                enabled =
+                    quoteText
+                        .isNotBlank() &&
+                            quoteText.length <=
+                            500 &&
+                            !isSaving
+            ) {
+                if (isSaving) {
+                    CircularProgressIndicator(
+                        modifier =
+                            Modifier
+                                .size(
+                                    18.dp
+                                ),
+                        strokeWidth =
+                            2.dp
+                    )
+
+                    Spacer(
+                        modifier =
+                            Modifier.width(
+                                8.dp
+                            )
+                    )
+
+                    Text(
+                        text =
+                            "Saving..."
+                    )
+                } else {
+                    Text(
+                        text =
+                            "Save Quote"
+                    )
+                }
+            }
+        },
+        dismissButton = {
+            TextButton(
+                onClick =
+                    onDismiss,
+                enabled =
+                    !isSaving
+            ) {
+                Text(
+                    text =
+                        "Cancel"
+                )
+            }
+        }
+    )
 }
 
 @Composable
@@ -331,29 +720,48 @@ private fun CoverImage(
         modifier = Modifier
             .fillMaxWidth(0.55f)
             .aspectRatio(0.7f),
-        shape = RoundedCornerShape(14.dp),
+        shape =
+            RoundedCornerShape(
+                14.dp
+            ),
         tonalElevation = 3.dp
     ) {
-        if (!media.coverUrl.isNullOrBlank()) {
+        if (
+            !media.coverUrl
+                .isNullOrBlank()
+        ) {
             AsyncImage(
-                model = media.coverUrl,
-                contentDescription = media.title,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize()
+                model =
+                    media.coverUrl,
+                contentDescription =
+                    media.title,
+                contentScale =
+                    ContentScale.Crop,
+                modifier =
+                    Modifier
+                        .fillMaxSize()
             )
         } else {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .background(
-                        MaterialTheme.colorScheme.surfaceVariant
+                        MaterialTheme
+                            .colorScheme
+                            .surfaceVariant
                     ),
-                contentAlignment = Alignment.Center
+                contentAlignment =
+                    Alignment.Center
             ) {
                 Text(
-                    text = mediaTypeEmoji(media),
+                    text =
+                        mediaTypeEmoji(
+                            media
+                        ),
                     style =
-                        MaterialTheme.typography.displayMedium
+                        MaterialTheme
+                            .typography
+                            .displayMedium
                 )
             }
         }
@@ -370,47 +778,76 @@ private fun RatingRow(
         horizontalArrangement =
             Arrangement.Center
     ) {
-        if (media.averageRating > 0.0) {
+        if (
+            media.averageRating >
+            0.0
+        ) {
             Icon(
-                imageVector = Icons.Filled.Star,
-                contentDescription = null,
+                imageVector =
+                    Icons.Filled.Star,
+                contentDescription =
+                    null,
                 tint =
-                    MaterialTheme.colorScheme.tertiary,
-                modifier = Modifier.size(22.dp)
+                    MaterialTheme
+                        .colorScheme
+                        .tertiary,
+                modifier =
+                    Modifier.size(
+                        22.dp
+                    )
             )
 
             Spacer(
-                modifier = Modifier.width(4.dp)
+                modifier =
+                    Modifier.width(
+                        4.dp
+                    )
             )
 
             Text(
-                text = String.format(
-                    "%.1f",
-                    media.averageRating
-                ),
+                text =
+                    String.format(
+                        "%.1f",
+                        media.averageRating
+                    ),
                 style =
-                    MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold
+                    MaterialTheme
+                        .typography
+                        .titleMedium,
+                fontWeight =
+                    FontWeight.SemiBold
             )
 
             Spacer(
-                modifier = Modifier.width(6.dp)
+                modifier =
+                    Modifier.width(
+                        6.dp
+                    )
             )
 
             Text(
-                text = "(${media.ratingCount ?: 0})",
+                text =
+                    "(${media.ratingCount ?: 0})",
                 style =
-                    MaterialTheme.typography.bodyMedium,
+                    MaterialTheme
+                        .typography
+                        .bodyMedium,
                 color =
-                    MaterialTheme.colorScheme.onSurfaceVariant
+                    MaterialTheme
+                        .colorScheme
+                        .onSurfaceVariant
             )
         } else {
             Text(
-                text = stringResource(
-                    R.string.detail_not_yet_rated
-                ),
+                text =
+                    stringResource(
+                        R.string
+                            .detail_not_yet_rated
+                    ),
                 color =
-                    MaterialTheme.colorScheme.onSurfaceVariant
+                    MaterialTheme
+                        .colorScheme
+                        .onSurfaceVariant
             )
         }
     }
@@ -418,49 +855,77 @@ private fun RatingRow(
 
 @Composable
 private fun ActionButtons(
-    state: MediaDetailUiState.Success,
-    onAddToLibrary: () -> Unit,
-    onSaveFavorite: () -> Unit
+    state:
+    MediaDetailUiState.Success,
+    onAddToLibrary:
+        () -> Unit,
+    onSaveFavorite:
+        () -> Unit
 ) {
     Row(
-        modifier = Modifier.fillMaxWidth(),
+        modifier =
+            Modifier.fillMaxWidth(),
         horizontalArrangement =
-            Arrangement.spacedBy(12.dp)
+            Arrangement.spacedBy(
+                12.dp
+            )
     ) {
+
         Button(
-            onClick = onAddToLibrary,
+            onClick =
+                onAddToLibrary,
             enabled =
                 !state.isInLibrary &&
                         !state.isAddingToLibrary,
-            modifier = Modifier.weight(1f),
+            modifier =
+                Modifier.weight(
+                    1f
+                ),
             contentPadding =
-                PaddingValues(horizontal = 8.dp)
+                PaddingValues(
+                    horizontal = 8.dp
+                )
         ) {
-            if (state.isAddingToLibrary) {
+
+            if (
+                state.isAddingToLibrary
+            ) {
                 CircularProgressIndicator(
-                    modifier = Modifier.size(18.dp),
+                    modifier =
+                        Modifier.size(
+                            18.dp
+                        ),
                     strokeWidth = 2.dp
                 )
 
                 Spacer(
-                    modifier = Modifier.width(6.dp)
+                    modifier =
+                        Modifier.width(
+                            6.dp
+                        )
                 )
 
                 Text(
-                    text = stringResource(
-                        R.string.detail_adding
-                    )
+                    text =
+                        stringResource(
+                            R.string
+                                .detail_adding
+                        )
                 )
             } else {
                 Text(
                     text =
-                        if (state.isInLibrary) {
+                        if (
+                            state.isInLibrary
+                        ) {
                             stringResource(
-                                R.string.detail_in_library
+                                R.string
+                                    .detail_in_library
                             )
                         } else {
                             stringResource(
-                                R.string.detail_add_want_to
+                                R.string
+                                    .detail_add_want_to
                             )
                         }
                 )
@@ -468,71 +933,122 @@ private fun ActionButtons(
         }
 
         if (state.isFavorite) {
+
             FilledTonalButton(
-                onClick = onSaveFavorite,
+                onClick =
+                    onSaveFavorite,
                 enabled =
                     !state.isAddingFavorite,
-                modifier = Modifier.weight(1f),
+                modifier =
+                    Modifier.weight(
+                        1f
+                    ),
                 contentPadding =
-                    PaddingValues(horizontal = 8.dp)
+                    PaddingValues(
+                        horizontal =
+                            8.dp
+                    )
             ) {
                 Icon(
                     imageVector =
-                        Icons.Filled.Favorite,
-                    contentDescription = null,
-                    modifier = Modifier.size(18.dp)
+                        Icons.Filled
+                            .Favorite,
+                    contentDescription =
+                        null,
+                    modifier =
+                        Modifier.size(
+                            18.dp
+                        )
                 )
 
                 Spacer(
-                    modifier = Modifier.width(6.dp)
+                    modifier =
+                        Modifier.width(
+                            6.dp
+                        )
                 )
 
                 Text(
-                    text = stringResource(
-                        R.string.detail_saved
-                    )
+                    text =
+                        stringResource(
+                            R.string
+                                .detail_saved
+                        )
                 )
             }
+
         } else {
+
             OutlinedButton(
-                onClick = onSaveFavorite,
+                onClick =
+                    onSaveFavorite,
                 enabled =
                     !state.isAddingFavorite,
-                modifier = Modifier.weight(1f),
+                modifier =
+                    Modifier.weight(
+                        1f
+                    ),
                 contentPadding =
-                    PaddingValues(horizontal = 8.dp)
+                    PaddingValues(
+                        horizontal =
+                            8.dp
+                    )
             ) {
-                if (state.isAddingFavorite) {
+
+                if (
+                    state.isAddingFavorite
+                ) {
                     CircularProgressIndicator(
-                        modifier = Modifier.size(18.dp),
-                        strokeWidth = 2.dp
+                        modifier =
+                            Modifier.size(
+                                18.dp
+                            ),
+                        strokeWidth =
+                            2.dp
                     )
 
                     Spacer(
-                        modifier = Modifier.width(6.dp)
+                        modifier =
+                            Modifier.width(
+                                6.dp
+                            )
                     )
 
                     Text(
-                        text = stringResource(
-                            R.string.detail_saving
-                        )
+                        text =
+                            stringResource(
+                                R.string
+                                    .detail_saving
+                            )
                     )
+
                 } else {
+
                     Icon(
                         imageVector =
-                            Icons.Outlined.FavoriteBorder,
-                        contentDescription = null,
-                        modifier = Modifier.size(18.dp)
+                            Icons.Outlined
+                                .FavoriteBorder,
+                        contentDescription =
+                            null,
+                        modifier =
+                            Modifier.size(
+                                18.dp
+                            )
                     )
 
                     Spacer(
-                        modifier = Modifier.width(6.dp)
+                        modifier =
+                            Modifier.width(
+                                6.dp
+                            )
                     )
 
                     Text(
-                        text = stringResource(
-                            R.string.detail_save
-                        )
+                        text =
+                            stringResource(
+                                R.string
+                                    .detail_save
+                            )
                     )
                 }
             }
@@ -545,29 +1061,42 @@ private fun AboutSection(
     media: MediaDetail
 ) {
     Column(
-        modifier = Modifier.fillMaxWidth()
+        modifier =
+            Modifier.fillMaxWidth()
     ) {
         Text(
-            text = stringResource(
-                R.string.detail_about
-            ),
+            text =
+                stringResource(
+                    R.string.detail_about
+                ),
             style =
-                MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.SemiBold
+                MaterialTheme
+                    .typography
+                    .titleMedium,
+            fontWeight =
+                FontWeight.SemiBold
         )
 
         Spacer(
-            modifier = Modifier.height(8.dp)
+            modifier =
+                Modifier.height(8.dp)
         )
 
         Text(
-            text = media.description
-                ?.takeIf { it.isNotBlank() }
-                ?: "No description available.",
+            text =
+                media.description
+                    ?.takeIf {
+                        it.isNotBlank()
+                    }
+                    ?: "No description available.",
             style =
-                MaterialTheme.typography.bodyMedium,
+                MaterialTheme
+                    .typography
+                    .bodyMedium,
             color =
-                MaterialTheme.colorScheme.onSurfaceVariant
+                MaterialTheme
+                    .colorScheme
+                    .onSurfaceVariant
         )
     }
 }
@@ -577,16 +1106,24 @@ private fun StatGrid(
     media: MediaDetail
 ) {
     Row(
-        modifier = Modifier.fillMaxWidth(),
+        modifier =
+            Modifier.fillMaxWidth(),
         horizontalArrangement =
-            Arrangement.spacedBy(10.dp)
+            Arrangement.spacedBy(
+                10.dp
+            )
     ) {
+
         StatBox(
             label = "Year",
             value =
-                media.publishedYear?.toString()
+                media.publishedYear
+                    ?.toString()
                     ?: "—",
-            modifier = Modifier.weight(1f)
+            modifier =
+                Modifier.weight(
+                    1f
+                )
         )
 
         val mediaType =
@@ -594,61 +1131,99 @@ private fun StatGrid(
                 .toString()
                 .lowercase()
 
-        val middleLabel: String
-        val middleValue: String
+        val middleLabel:
+                String
+
+        val middleValue:
+                String
 
         when {
-            mediaType.contains("book") -> {
-                middleLabel = "Pages"
+            mediaType.contains(
+                "book"
+            ) -> {
+                middleLabel =
+                    "Pages"
+
                 middleValue =
-                    media.pageCount?.toString()
+                    media.pageCount
+                        ?.toString()
                         ?: "—"
             }
 
-            mediaType.contains("movie") -> {
-                middleLabel = "Runtime"
+            mediaType.contains(
+                "movie"
+            ) -> {
+                middleLabel =
+                    "Runtime"
+
                 middleValue =
-                    media.runtimeMinutes?.let {
-                        "$it min"
-                    } ?: "—"
+                    media.runtimeMinutes
+                        ?.let {
+                            "$it min"
+                        }
+                        ?: "—"
             }
 
-            mediaType.contains("show") -> {
-                middleLabel = "Episodes"
+            mediaType.contains(
+                "show"
+            ) -> {
+                middleLabel =
+                    "Episodes"
+
                 middleValue =
                     when {
-                        media.seasonCount != null &&
-                                media.episodeCount != null ->
+                        media.seasonCount !=
+                                null &&
+                                media.episodeCount !=
+                                null ->
+
                             "${media.seasonCount} seasons\n${media.episodeCount} episodes"
 
-                        media.seasonCount != null ->
+                        media.seasonCount !=
+                                null ->
+
                             "${media.seasonCount} seasons"
 
-                        media.episodeCount != null ->
+                        media.episodeCount !=
+                                null ->
+
                             "${media.episodeCount} episodes"
 
-                        else -> "—"
+                        else ->
+                            "—"
                     }
             }
 
             else -> {
-                middleLabel = "Details"
-                middleValue = "—"
+                middleLabel =
+                    "Details"
+
+                middleValue =
+                    "—"
             }
         }
 
         StatBox(
-            label = middleLabel,
-            value = middleValue,
-            modifier = Modifier.weight(1f)
+            label =
+                middleLabel,
+            value =
+                middleValue,
+            modifier =
+                Modifier.weight(
+                    1f
+                )
         )
 
         StatBox(
             label = "Genre",
             value =
-                media.genres.firstOrNull()
+                media.genres
+                    .firstOrNull()
                     ?: "—",
-            modifier = Modifier.weight(1f)
+            modifier =
+                Modifier.weight(
+                    1f
+                )
         )
     }
 }
@@ -657,45 +1232,71 @@ private fun StatGrid(
 private fun StatBox(
     label: String,
     value: String,
-    modifier: Modifier = Modifier
+    modifier:
+    Modifier = Modifier
 ) {
     Card(
-        modifier = modifier,
-        shape = RoundedCornerShape(12.dp),
+        modifier =
+            modifier,
+        shape =
+            RoundedCornerShape(
+                12.dp
+            ),
         colors =
-            CardDefaults.cardColors(
-                containerColor =
-                    MaterialTheme.colorScheme.surfaceVariant
-            )
+            CardDefaults
+                .cardColors(
+                    containerColor =
+                        MaterialTheme
+                            .colorScheme
+                            .surfaceVariant
+                )
     ) {
         Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(
-                    horizontal = 8.dp,
-                    vertical = 14.dp
-                ),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(
+                        horizontal =
+                            8.dp,
+                        vertical =
+                            14.dp
+                    ),
             horizontalAlignment =
-                Alignment.CenterHorizontally
+                Alignment
+                    .CenterHorizontally
         ) {
+
             Text(
-                text = label,
+                text =
+                    label,
                 style =
-                    MaterialTheme.typography.labelMedium,
+                    MaterialTheme
+                        .typography
+                        .labelMedium,
                 color =
-                    MaterialTheme.colorScheme.onSurfaceVariant
+                    MaterialTheme
+                        .colorScheme
+                        .onSurfaceVariant
             )
 
             Spacer(
-                modifier = Modifier.height(4.dp)
+                modifier =
+                    Modifier.height(
+                        4.dp
+                    )
             )
 
             Text(
-                text = value,
+                text =
+                    value,
                 style =
-                    MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.SemiBold,
-                textAlign = TextAlign.Center
+                    MaterialTheme
+                        .typography
+                        .bodyMedium,
+                fontWeight =
+                    FontWeight.SemiBold,
+                textAlign =
+                    TextAlign.Center
             )
         }
     }
@@ -704,32 +1305,43 @@ private fun StatBox(
 @Composable
 private fun ReviewsHeader(
     reviewCount: Int,
-    onWriteReview: () -> Unit
+    onWriteReview:
+        () -> Unit
 ) {
     Row(
-        modifier = Modifier.fillMaxWidth(),
+        modifier =
+            Modifier.fillMaxWidth(),
         verticalAlignment =
             Alignment.CenterVertically,
         horizontalArrangement =
             Arrangement.SpaceBetween
     ) {
+
         Text(
-            text = stringResource(
-                R.string.detail_reviews_count,
-                reviewCount
-            ),
+            text =
+                stringResource(
+                    R.string
+                        .detail_reviews_count,
+                    reviewCount
+                ),
             style =
-                MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.SemiBold
+                MaterialTheme
+                    .typography
+                    .titleMedium,
+            fontWeight =
+                FontWeight.SemiBold
         )
 
         TextButton(
-            onClick = onWriteReview
+            onClick =
+                onWriteReview
         ) {
             Text(
-                text = stringResource(
-                    R.string.detail_write_review
-                )
+                text =
+                    stringResource(
+                        R.string
+                            .detail_write_review
+                    )
             )
         }
     }
@@ -743,84 +1355,135 @@ private fun ReviewCard(
     reviewText: String
 ) {
     Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp),
+        modifier =
+            Modifier.fillMaxWidth(),
+        shape =
+            RoundedCornerShape(
+                12.dp
+            ),
         elevation =
-            CardDefaults.cardElevation(
-                defaultElevation = 1.dp
-            )
+            CardDefaults
+                .cardElevation(
+                    defaultElevation =
+                        1.dp
+                )
     ) {
+
         Column(
-            modifier = Modifier.padding(16.dp)
+            modifier =
+                Modifier.padding(
+                    16.dp
+                )
         ) {
+
             Row(
                 verticalAlignment =
-                    Alignment.CenterVertically
+                    Alignment
+                        .CenterVertically
             ) {
+
                 Box(
-                    modifier = Modifier
-                        .size(40.dp)
-                        .clip(CircleShape)
-                        .background(
-                            MaterialTheme.colorScheme.primaryContainer
-                        ),
+                    modifier =
+                        Modifier
+                            .size(
+                                40.dp
+                            )
+                            .clip(
+                                CircleShape
+                            )
+                            .background(
+                                MaterialTheme
+                                    .colorScheme
+                                    .primaryContainer
+                            ),
                     contentAlignment =
                         Alignment.Center
                 ) {
+
                     Text(
-                        text = username
-                            .firstOrNull()
-                            ?.uppercase()
-                            ?: "?",
-                        fontWeight = FontWeight.Bold
+                        text =
+                            username
+                                .firstOrNull()
+                                ?.uppercase()
+                                ?: "?",
+                        fontWeight =
+                            FontWeight.Bold
                     )
                 }
 
                 Spacer(
-                    modifier = Modifier.width(10.dp)
+                    modifier =
+                        Modifier.width(
+                            10.dp
+                        )
                 )
 
                 Column(
-                    modifier = Modifier.weight(1f)
+                    modifier =
+                        Modifier.weight(
+                            1f
+                        )
                 ) {
+
                     Text(
-                        text = username,
+                        text =
+                            username,
                         fontWeight =
-                            FontWeight.SemiBold
+                            FontWeight
+                                .SemiBold
                     )
 
                     Text(
-                        text = timestamp,
+                        text =
+                            timestamp,
                         style =
-                            MaterialTheme.typography.bodySmall,
+                            MaterialTheme
+                                .typography
+                                .bodySmall,
                         color =
-                            MaterialTheme.colorScheme.onSurfaceVariant
+                            MaterialTheme
+                                .colorScheme
+                                .onSurfaceVariant
                     )
                 }
 
                 Row {
-                    repeat(rating) {
+                    repeat(
+                        rating
+                    ) {
                         Icon(
                             imageVector =
-                                Icons.Filled.Star,
-                            contentDescription = null,
+                                Icons.Filled
+                                    .Star,
+                            contentDescription =
+                                null,
                             tint =
-                                MaterialTheme.colorScheme.tertiary,
+                                MaterialTheme
+                                    .colorScheme
+                                    .tertiary,
                             modifier =
-                                Modifier.size(16.dp)
+                                Modifier.size(
+                                    16.dp
+                                )
                         )
                     }
                 }
             }
 
             Spacer(
-                modifier = Modifier.height(12.dp)
+                modifier =
+                    Modifier.height(
+                        12.dp
+                    )
             )
 
             Text(
-                text = reviewText,
+                text =
+                    reviewText,
                 style =
-                    MaterialTheme.typography.bodyMedium
+                    MaterialTheme
+                        .typography
+                        .bodyMedium
             )
         }
     }
@@ -829,20 +1492,31 @@ private fun ReviewCard(
 private fun creatorCredit(
     media: MediaDetail
 ): String {
+
     val type =
         media.mediaType
             .toString()
             .lowercase()
 
     return when {
-        type.contains("book") ->
-            media.author ?: "Unknown author"
 
-        type.contains("movie") ->
-            media.director ?: "Unknown director"
+        type.contains(
+            "book"
+        ) ->
+            media.author
+                ?: "Unknown author"
 
-        type.contains("show") ->
-            media.creator ?: "Unknown creator"
+        type.contains(
+            "movie"
+        ) ->
+            media.director
+                ?: "Unknown director"
+
+        type.contains(
+            "show"
+        ) ->
+            media.creator
+                ?: "Unknown creator"
 
         else ->
             media.author
@@ -855,15 +1529,26 @@ private fun creatorCredit(
 private fun mediaTypeEmoji(
     media: MediaDetail
 ): String {
+
     val type =
         media.mediaType
             .toString()
             .lowercase()
 
     return when {
-        type.contains("book") -> "📖"
-        type.contains("movie") -> "🎬"
-        type.contains("show") -> "📺"
+
+        type.contains(
+            "book"
+        ) -> "📖"
+
+        type.contains(
+            "movie"
+        ) -> "🎬"
+
+        type.contains(
+            "show"
+        ) -> "📺"
+
         else -> "?"
     }
 }

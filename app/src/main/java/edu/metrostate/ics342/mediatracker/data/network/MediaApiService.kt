@@ -5,6 +5,7 @@ import edu.metrostate.ics342.mediatracker.data.model.LibraryItem
 import edu.metrostate.ics342.mediatracker.data.model.Media
 import edu.metrostate.ics342.mediatracker.data.model.MediaDetail
 import edu.metrostate.ics342.mediatracker.data.model.Review
+import edu.metrostate.ics342.mediatracker.data.model.Quote
 import retrofit2.Response
 import retrofit2.http.Body
 import retrofit2.http.GET
@@ -60,6 +61,18 @@ interface MediaApiService {
     suspend fun getReviews(
         @Query("mediaId") mediaId: Int
     ): Response<List<Review>>
+
+    @GET("quotes")
+    suspend fun getQuotes(
+        @Query("public") publicOnly: Boolean? = null,
+        @Query("limit") limit: Int = 20,
+        @Query("after") after: String? = null
+    ): Response<List<Quote>>
+
+    @POST("quotes")
+    suspend fun addQuote(
+        @Body body: AddQuoteRequest
+    ): Response<Quote>
 
     @PUT("library/{mediaId}")
     suspend fun updateLibraryStatus(

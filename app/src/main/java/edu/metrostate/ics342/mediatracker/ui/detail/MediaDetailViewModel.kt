@@ -27,7 +27,11 @@ sealed interface MediaDetailUiState {
         val isInLibrary: Boolean,
         val isFavorite: Boolean,
         val isAddingToLibrary: Boolean = false,
-        val isAddingFavorite: Boolean = false
+        val isAddingFavorite: Boolean = false,
+
+        // Quote state
+        val isSavingQuote: Boolean = false,
+        val quoteMessage: String? = null
     ) : MediaDetailUiState
 }
 
@@ -74,11 +78,6 @@ class MediaDetailViewModel(
                 val media =
                     repository.getMediaDetail(mediaId)
 
-                /*
-                 * A 404 from either of these means the item
-                 * has not been added yet. The repository
-                 * returns null for those normal 404 responses.
-                 */
                 val libraryItem =
                     runCatching {
                         repository.getLibraryItem(mediaId)
@@ -121,12 +120,6 @@ class MediaDetailViewModel(
         }
     }
 
-    /*
-     * Optimistic library add:
-     * 1. Update the button immediately.
-     * 2. Call the server.
-     * 3. Roll back only if the request genuinely fails.
-     */
     fun addToLibrary() {
         val current =
             _uiState.value as? MediaDetailUiState.Success
@@ -170,10 +163,6 @@ class MediaDetailViewModel(
                     _uiState.value as? MediaDetailUiState.Success
                         ?: return@launch
 
-                /*
-                 * A duplicate add means the final state is
-                 * already correct, so do not roll it back.
-                 */
                 val alreadyAdded =
                     exception.message
                         ?.contains("409") == true ||
@@ -199,12 +188,6 @@ class MediaDetailViewModel(
         }
     }
 
-    /*
-     * Optimistic favorite toggle:
-     *
-     * Not saved -> POST /favorites
-     * Saved     -> DELETE /favorites/{mediaId}
-     */
     fun addFavorite() {
         val current =
             _uiState.value as? MediaDetailUiState.Success
@@ -220,9 +203,6 @@ class MediaDetailViewModel(
         val wasFavorite =
             current.isFavorite
 
-        /*
-         * Update the heart immediately.
-         */
         _uiState.value =
             current.copy(
                 isFavorite = !wasFavorite,
@@ -253,10 +233,6 @@ class MediaDetailViewModel(
             } catch (
                 exception: DuplicateFavoriteException
             ) {
-                /*
-                 * A duplicate favorite means it is already
-                 * saved, so the optimistic state is correct.
-                 */
                 val latest =
                     _uiState.value as? MediaDetailUiState.Success
                         ?: return@launch
@@ -274,13 +250,107 @@ class MediaDetailViewModel(
                     _uiState.value as? MediaDetailUiState.Success
                         ?: return@launch
 
-                /*
-                 * Genuine failure: restore the old value.
-                 */
                 _uiState.value =
                     latest.copy(
                         isFavorite = wasFavorite,
                         isAddingFavorite = false
+                    )
+            }
+        }
+    }
+
+    fun saveQuote(
+        quoteText: String,
+        pageNumberText: String,
+        isPublic: Boolean
+    ) {
+        val current =
+            _uiState.value as? MediaDetailUiState.Success
+                ?: return
+
+        if (currentMediaId <= 0) {
+            return
+        }
+
+        val cleanedText =
+            quoteText.trim()
+
+        if (cleanedText.isBlank()) {
+            _uiState.value =
+                current.copy(
+                    quoteMessage =
+                        "Quote text is required."
+                )
+            return
+        }
+
+        if (cleanedText.length > 500) {
+            _uiState.value =
+                current.copy(
+                    quoteMessage =
+                        "Quote must be 500 characters or less."
+                )
+            return
+        }
+
+        val pageNumber =
+            if (pageNumberText.isBlank()) {
+                null
+            } else {
+                pageNumberText.toIntOrNull()
+            }
+
+        if (
+            pageNumberText.isNotBlank() &&
+            pageNumber == null
+        ) {
+            _uiState.value =
+                current.copy(
+                    quoteMessage =
+                        "Page number must be a number."
+                )
+            return
+        }
+
+        _uiState.value =
+            current.copy(
+                isSavingQuote = true,
+                quoteMessage = null
+            )
+
+        viewModelScope.launch {
+            try {
+                repository.addQuote(
+                    mediaId = currentMediaId,
+                    quoteText = cleanedText,
+                    pageNumber = pageNumber,
+                    isPublic = isPublic
+                )
+
+                val latest =
+                    _uiState.value as? MediaDetailUiState.Success
+                        ?: return@launch
+
+                _uiState.value =
+                    latest.copy(
+                        isSavingQuote = false,
+                        quoteMessage =
+                            "Quote saved."
+                    )
+
+            } catch (exception: Exception) {
+                exception.printStackTrace()
+
+                val latest =
+                    _uiState.value as? MediaDetailUiState.Success
+                        ?: return@launch
+
+                _uiState.value =
+                    latest.copy(
+                        isSavingQuote = false,
+                        quoteMessage =
+                            exception.message
+                                ?: "Unable to save quote."
                     )
             }
         }

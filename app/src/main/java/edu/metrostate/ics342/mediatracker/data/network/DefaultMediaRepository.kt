@@ -10,6 +10,7 @@ import edu.metrostate.ics342.mediatracker.data.model.Media
 import edu.metrostate.ics342.mediatracker.data.model.MediaDetail
 import edu.metrostate.ics342.mediatracker.data.model.MediaNotFoundException
 import edu.metrostate.ics342.mediatracker.data.model.Review
+import edu.metrostate.ics342.mediatracker.data.model.Quote
 import kotlinx.serialization.decodeFromString
 import retrofit2.Response
 
@@ -25,6 +26,11 @@ data class LibraryPage(
     val hasMore: Boolean
 )
 
+data class QuotePage(
+    val items: List<Quote>,
+    val nextCursor: String?,
+    val hasMore: Boolean
+)
 class DefaultMediaRepository(
     sessionRepository: SessionRepository
 ) {
@@ -273,6 +279,56 @@ class DefaultMediaRepository(
         }
     }
 
+
+    suspend fun addQuote(
+        mediaId: Int,
+        quoteText: String,
+        pageNumber: Int?,
+        isPublic: Boolean
+    ): Quote {
+        val response =
+            api.addQuote(
+                AddQuoteRequest(
+                    mediaId = mediaId,
+                    quoteText = quoteText,
+                    pageNumber = pageNumber,
+                    isPublic = isPublic
+                )
+            )
+
+        if (!response.isSuccessful) {
+            error(
+                parseErrorMessage(response)
+                    ?: "Failed to save quote (${response.code()})"
+            )
+        }
+
+        return response.body()
+            ?: error("Empty response saving quote")
+    }
+
+    suspend fun getQuotes(
+        after: String? = null
+    ): QuotePage {
+        val response =
+            api.getQuotes(
+                publicOnly = null,
+                after = after
+            )
+
+        if (!response.isSuccessful) {
+            error(
+                parseErrorMessage(response)
+                    ?: "Failed to load quotes (${response.code()})"
+            )
+        }
+
+        return QuotePage(
+            items = response.body().orEmpty(),
+            nextCursor = response.headers()["X-Next-Cursor"],
+            hasMore = response.headers()["X-Has-More"] == "true"
+        )
+    }
     suspend fun removeFavorite(
         mediaId: Int
     ) {
