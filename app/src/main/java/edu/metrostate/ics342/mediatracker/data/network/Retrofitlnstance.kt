@@ -11,20 +11,17 @@ import retrofit2.Retrofit
 
 object RetrofitInstance {
 
-    private val json = Json {
+    val json = Json {
         ignoreUnknownKeys = true
         encodeDefaults = true
     }
 
     private val loggingInterceptor =
         HttpLoggingInterceptor().apply {
-            level = HttpLoggingInterceptor.Level.BODY
+            // BASIC avoids printing passwords and access tokens.
+            level = HttpLoggingInterceptor.Level.BASIC
         }
 
-    /*
-     * This client is used for login and registration.
-     * Those requests do not require an access token.
-     */
     private val publicClient =
         OkHttpClient.Builder()
             .addInterceptor(loggingInterceptor)
@@ -36,21 +33,14 @@ object RetrofitInstance {
             .client(publicClient)
             .addConverterFactory(
                 json.asConverterFactory(
-                    "application/json; charset=utf-8"
-                        .toMediaType()
+                    "application/json; charset=utf-8".toMediaType()
                 )
             )
             .build()
 
     val userApiService: UserApiService =
-        publicRetrofit.create(
-            UserApiService::class.java
-        )
+        publicRetrofit.create(UserApiService::class.java)
 
-    /*
-     * This creates a MediaApiService that includes the
-     * logged-in user's access token.
-     */
     fun createMediaApiService(
         sessionRepository: SessionRepository
     ): MediaApiService {
@@ -58,7 +48,6 @@ object RetrofitInstance {
         val authenticatedClient =
             OkHttpClient.Builder()
                 .addInterceptor { chain ->
-
                     val accessToken =
                         runBlocking {
                             sessionRepository.getAccessToken()
@@ -75,9 +64,7 @@ object RetrofitInstance {
                         )
                     }
 
-                    chain.proceed(
-                        requestBuilder.build()
-                    )
+                    chain.proceed(requestBuilder.build())
                 }
                 .addInterceptor(loggingInterceptor)
                 .build()
@@ -88,8 +75,7 @@ object RetrofitInstance {
                 .client(authenticatedClient)
                 .addConverterFactory(
                     json.asConverterFactory(
-                        "application/json; charset=utf-8"
-                            .toMediaType()
+                        "application/json; charset=utf-8".toMediaType()
                     )
                 )
                 .build()

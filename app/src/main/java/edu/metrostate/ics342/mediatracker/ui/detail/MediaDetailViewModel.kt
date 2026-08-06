@@ -3,13 +3,12 @@ package edu.metrostate.ics342.mediatracker.ui.detail
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import edu.metrostate.ics342.mediatracker.data.SessionRepository
 import edu.metrostate.ics342.mediatracker.data.datastore.DefaultSessionRepository
+import edu.metrostate.ics342.mediatracker.data.model.DuplicateFavoriteException
 import edu.metrostate.ics342.mediatracker.data.model.LibraryStatus
 import edu.metrostate.ics342.mediatracker.data.model.MediaDetail
-import edu.metrostate.ics342.mediatracker.data.network.AddLibraryRequest
-import edu.metrostate.ics342.mediatracker.data.network.MediaApiService
-import edu.metrostate.ics342.mediatracker.data.network.RetrofitInstance
+import edu.metrostate.ics342.mediatracker.data.model.MediaNotFoundException
+import edu.metrostate.ics342.mediatracker.data.network.DefaultMediaRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -26,7 +25,9 @@ sealed interface MediaDetailUiState {
     data class Success(
         val media: MediaDetail,
         val isInLibrary: Boolean,
-        val isAddingToLibrary: Boolean = false
+        val isFavorite: Boolean,
+        val isAddingToLibrary: Boolean = false,
+        val isAddingFavorite: Boolean = false
     ) : MediaDetailUiState
 }
 
@@ -34,13 +35,13 @@ class MediaDetailViewModel(
     application: Application
 ) : AndroidViewModel(application) {
 
-    private val sessionRepository: SessionRepository =
+    private val sessionRepository =
         DefaultSessionRepository(
             application.applicationContext
         )
 
-    private val api: MediaApiService =
-        RetrofitInstance.createMediaApiService(
+    private val repository =
+        DefaultMediaRepository(
             sessionRepository
         )
 
@@ -60,7 +61,7 @@ class MediaDetailViewModel(
         if (mediaId <= 0) {
             _uiState.value =
                 MediaDetailUiState.Error(
-                    "The media ID is missing."
+                    message = "The media ID is missing."
                 )
             return
         }
@@ -70,92 +71,38 @@ class MediaDetailViewModel(
                 MediaDetailUiState.Loading
 
             try {
-                val accessToken =
-                    sessionRepository.getAccessToken()
-
-                if (accessToken.isNullOrBlank()) {
-                    _uiState.value =
-                        MediaDetailUiState.Error(
-                            "Your login session is missing. Please log in again."
-                        )
-                    return@launch
-                }
-
-                val mediaResponse =
-                    api.getMediaDetail(mediaId)
-
-                if (!mediaResponse.isSuccessful) {
-                    val errorBody =
-                        mediaResponse.errorBody()?.string()
-
-                    val message =
-                        when (mediaResponse.code()) {
-                            401 -> {
-                                "Your login session is missing or expired."
-                            }
-
-                            403 -> {
-                                "You are not allowed to view this media."
-                            }
-
-                            404 -> {
-                                "Media not found. ID: $mediaId"
-                            }
-
-                            else -> {
-                                errorBody
-                                    ?: "Unable to load media details."
-                            }
-                        }
-
-                    _uiState.value =
-                        MediaDetailUiState.Error(message)
-
-                    return@launch
-                }
-
                 val media =
-                    mediaResponse.body()
+                    repository.getMediaDetail(mediaId)
 
-                if (media == null) {
-                    _uiState.value =
-                        MediaDetailUiState.Error(
-                            "Media details were empty."
-                        )
-                    return@launch
-                }
+                /*
+                 * A 404 from either of these means the item
+                 * has not been added yet. The repository
+                 * returns null for those normal 404 responses.
+                 */
+                val libraryItem =
+                    runCatching {
+                        repository.getLibraryItem(mediaId)
+                    }.getOrNull()
 
-                val libraryResponse =
-                    api.getLibraryItem(mediaId)
-
-                val isInLibrary =
-                    when {
-                        libraryResponse.isSuccessful -> {
-                            true
-                        }
-
-                        libraryResponse.code() == 404 -> {
-                            false
-                        }
-
-                        libraryResponse.code() == 401 -> {
-                            _uiState.value =
-                                MediaDetailUiState.Error(
-                                    "Your login session is missing or expired."
-                                )
-                            return@launch
-                        }
-
-                        else -> {
-                            false
-                        }
-                    }
+                val favorite =
+                    runCatching {
+                        repository.getFavorite(mediaId)
+                    }.getOrNull()
 
                 _uiState.value =
                     MediaDetailUiState.Success(
                         media = media,
-                        isInLibrary = isInLibrary
+                        isInLibrary = libraryItem != null,
+                        isFavorite = favorite != null
                     )
+
+            } catch (exception: MediaNotFoundException) {
+                _uiState.value =
+                    MediaDetailUiState.Error(
+                        message = exception.message
+                            ?: "Media item not found."
+                    )
+
             } catch (exception: Exception) {
                 exception.printStackTrace()
 
@@ -174,52 +121,166 @@ class MediaDetailViewModel(
         }
     }
 
+    /*
+     * Optimistic library add:
+     * 1. Update the button immediately.
+     * 2. Call the server.
+     * 3. Roll back only if the request genuinely fails.
+     */
     fun addToLibrary() {
-        val currentState =
+        val current =
             _uiState.value as? MediaDetailUiState.Success
                 ?: return
 
         if (
-            currentState.isInLibrary ||
-            currentState.isAddingToLibrary ||
+            current.isInLibrary ||
+            current.isAddingToLibrary ||
             currentMediaId <= 0
         ) {
             return
         }
 
+        _uiState.value =
+            current.copy(
+                isInLibrary = true,
+                isAddingToLibrary = true
+            )
+
         viewModelScope.launch {
-            _uiState.value =
-                currentState.copy(
-                    isAddingToLibrary = true
+            try {
+                repository.addToLibrary(
+                    mediaId = currentMediaId,
+                    status = LibraryStatus.WANT_TO
                 )
 
-            try {
-                val response =
-                    api.addToLibrary(
-                        AddLibraryRequest(
-                            mediaId = currentMediaId,
-                            status = LibraryStatus.WANT_TO
-                        )
+                val latest =
+                    _uiState.value as? MediaDetailUiState.Success
+                        ?: return@launch
+
+                _uiState.value =
+                    latest.copy(
+                        isInLibrary = true,
+                        isAddingToLibrary = false
                     )
 
-                if (response.isSuccessful) {
-                    _uiState.value =
-                        currentState.copy(
-                            isInLibrary = true,
-                            isAddingToLibrary = false
-                        )
-                } else {
-                    _uiState.value =
-                        currentState.copy(
-                            isAddingToLibrary = false
-                        )
-                }
             } catch (exception: Exception) {
                 exception.printStackTrace()
 
+                val latest =
+                    _uiState.value as? MediaDetailUiState.Success
+                        ?: return@launch
+
+                /*
+                 * A duplicate add means the final state is
+                 * already correct, so do not roll it back.
+                 */
+                val alreadyAdded =
+                    exception.message
+                        ?.contains("409") == true ||
+                            exception.message
+                                ?.contains(
+                                    "already",
+                                    ignoreCase = true
+                                ) == true
+
                 _uiState.value =
-                    currentState.copy(
-                        isAddingToLibrary = false
+                    if (alreadyAdded) {
+                        latest.copy(
+                            isInLibrary = true,
+                            isAddingToLibrary = false
+                        )
+                    } else {
+                        latest.copy(
+                            isInLibrary = false,
+                            isAddingToLibrary = false
+                        )
+                    }
+            }
+        }
+    }
+
+    /*
+     * Optimistic favorite toggle:
+     *
+     * Not saved -> POST /favorites
+     * Saved     -> DELETE /favorites/{mediaId}
+     */
+    fun addFavorite() {
+        val current =
+            _uiState.value as? MediaDetailUiState.Success
+                ?: return
+
+        if (
+            current.isAddingFavorite ||
+            currentMediaId <= 0
+        ) {
+            return
+        }
+
+        val wasFavorite =
+            current.isFavorite
+
+        /*
+         * Update the heart immediately.
+         */
+        _uiState.value =
+            current.copy(
+                isFavorite = !wasFavorite,
+                isAddingFavorite = true
+            )
+
+        viewModelScope.launch {
+            try {
+                if (wasFavorite) {
+                    repository.removeFavorite(
+                        mediaId = currentMediaId
+                    )
+                } else {
+                    repository.addFavorite(
+                        mediaId = currentMediaId
+                    )
+                }
+
+                val latest =
+                    _uiState.value as? MediaDetailUiState.Success
+                        ?: return@launch
+
+                _uiState.value =
+                    latest.copy(
+                        isAddingFavorite = false
+                    )
+
+            } catch (
+                exception: DuplicateFavoriteException
+            ) {
+                /*
+                 * A duplicate favorite means it is already
+                 * saved, so the optimistic state is correct.
+                 */
+                val latest =
+                    _uiState.value as? MediaDetailUiState.Success
+                        ?: return@launch
+
+                _uiState.value =
+                    latest.copy(
+                        isFavorite = true,
+                        isAddingFavorite = false
+                    )
+
+            } catch (exception: Exception) {
+                exception.printStackTrace()
+
+                val latest =
+                    _uiState.value as? MediaDetailUiState.Success
+                        ?: return@launch
+
+                /*
+                 * Genuine failure: restore the old value.
+                 */
+                _uiState.value =
+                    latest.copy(
+                        isFavorite = wasFavorite,
+                        isAddingFavorite = false
                     )
             }
         }

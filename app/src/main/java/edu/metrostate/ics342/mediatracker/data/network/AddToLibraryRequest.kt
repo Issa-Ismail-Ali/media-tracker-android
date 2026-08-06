@@ -4,7 +4,7 @@ import edu.metrostate.ics342.mediatracker.data.model.LibraryStatus
 import kotlinx.serialization.Serializable
 
 @Serializable
-data class AddLibraryRequest(
+data class AddToLibraryRequest(
     val mediaId: Int,
     val status: LibraryStatus
 )

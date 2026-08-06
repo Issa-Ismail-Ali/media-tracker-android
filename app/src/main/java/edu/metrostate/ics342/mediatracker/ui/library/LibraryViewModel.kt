@@ -1,51 +1,201 @@
 package edu.metrostate.ics342.mediatracker.ui.library
 
-import androidx.lifecycle.ViewModel
+import android.app.Application
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import edu.metrostate.ics342.mediatracker.data.FakeMediaRepository
+import edu.metrostate.ics342.mediatracker.data.datastore.DefaultSessionRepository
 import edu.metrostate.ics342.mediatracker.data.model.LibraryItem
 import edu.metrostate.ics342.mediatracker.data.model.LibraryStatus
-import kotlinx.coroutines.GlobalScope
+import edu.metrostate.ics342.mediatracker.data.network.DefaultMediaRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
-class LibraryViewModel : ViewModel() {
+sealed interface LibraryUiState {
 
-    private val _libraryItems = MutableStateFlow<List<LibraryItem>>(emptyList())
-    val libraryItems: StateFlow<List<LibraryItem>> = _libraryItems.asStateFlow()
+    data object Loading : LibraryUiState
 
-    private val _isLoading = MutableStateFlow(false)
-    val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
+    data class Error(
+        val message: String
+    ) : LibraryUiState
 
-    private val _filterState = MutableStateFlow( value = LibraryStatus.WANT_TO)
-    val filterState: StateFlow<LibraryStatus> = _filterState.asStateFlow()
+    data class Success(
+        val items: List<LibraryItem>,
+        val actionError: String? = null
+    ) : LibraryUiState
+}
+
+class LibraryViewModel(
+    application: Application
+) : AndroidViewModel(application) {
+
+    private val sessionRepository =
+        DefaultSessionRepository(
+            application.applicationContext
+        )
+
+    private val repository =
+        DefaultMediaRepository(
+            sessionRepository
+        )
+
+    private val _uiState =
+        MutableStateFlow<LibraryUiState>(
+            LibraryUiState.Loading
+        )
+
+    val uiState: StateFlow<LibraryUiState> =
+        _uiState.asStateFlow()
+
+    private val _selectedStatus =
+        MutableStateFlow(
+            LibraryStatus.WANT_TO
+        )
+
+    val selectedStatus:
+            StateFlow<LibraryStatus> =
+        _selectedStatus.asStateFlow()
 
     init {
-        loadLibrary()
+        loadLibrary(
+            LibraryStatus.WANT_TO
+        )
     }
 
-    fun loadLibrary() {
+    fun loadLibrary(
+        status: LibraryStatus
+    ) {
+        _selectedStatus.value = status
+        _uiState.value =
+            LibraryUiState.Loading
+
         viewModelScope.launch {
-            _isLoading.value = true
-            _libraryItems.value = FakeMediaRepository.libraryItems
-            _isLoading.value = false
+            try {
+                val page =
+                    repository.getLibrary(
+                        status = status
+                    )
+
+                _uiState.value =
+                    LibraryUiState.Success(
+                        items = page.items
+                    )
+            } catch (exception: Exception) {
+                _uiState.value =
+                    LibraryUiState.Error(
+                        exception.message
+                            ?: "Unable to load your library."
+                    )
+            }
         }
     }
 
-    fun removeItem(mediaId: Int) {
-        _libraryItems.value = _libraryItems.value.filter { it.mediaId != mediaId }
+    fun retry() {
+        loadLibrary(
+            _selectedStatus.value
+        )
     }
 
-    fun updateStatus(mediaId: Int, newStatus: LibraryStatus) {
-        _libraryItems.value = _libraryItems.value.map { item ->
-            if (item.mediaId == mediaId) item.copy(status = newStatus) else item
+    fun removeItem(
+        mediaId: Int
+    ) {
+        val current =
+            _uiState.value as? LibraryUiState.Success
+                ?: return
+
+        val backup =
+            current.items.firstOrNull {
+                it.mediaId == mediaId
+            } ?: return
+
+        _uiState.value =
+            current.copy(
+                items =
+                    current.items.filter {
+                        it.mediaId != mediaId
+                    },
+                actionError = null
+            )
+
+        viewModelScope.launch {
+            try {
+                repository.removeFromLibrary(
+                    mediaId
+                )
+            } catch (exception: Exception) {
+                val latest =
+                    _uiState.value as? LibraryUiState.Success
+                        ?: return@launch
+
+                _uiState.value =
+                    latest.copy(
+                        items =
+                            latest.items + backup,
+                        actionError =
+                            "Couldn't remove item. Try again."
+                    )
+            }
         }
-
     }
 
-    fun updateFilter(status: LibraryStatus) {
-        _filterState.value = status
+    fun updateStatus(
+        mediaId: Int,
+        newStatus: LibraryStatus
+    ) {
+        val current =
+            _uiState.value as? LibraryUiState.Success
+                ?: return
+
+        val originalItem =
+            current.items.firstOrNull {
+                it.mediaId == mediaId
+            } ?: return
+
+        /*
+         * Because the screen is filtered by status,
+         * changing the status removes the item immediately
+         * from the current tab.
+         */
+        _uiState.value =
+            current.copy(
+                items =
+                    current.items.filter {
+                        it.mediaId != mediaId
+                    },
+                actionError = null
+            )
+
+        viewModelScope.launch {
+            try {
+                repository.updateLibraryStatus(
+                    mediaId = mediaId,
+                    status = newStatus
+                )
+            } catch (exception: Exception) {
+                val latest =
+                    _uiState.value as? LibraryUiState.Success
+                        ?: return@launch
+
+                _uiState.value =
+                    latest.copy(
+                        items =
+                            latest.items + originalItem,
+                        actionError =
+                            "Couldn't change status. Try again."
+                    )
+            }
+        }
     }
+
+    fun clearActionError() {
+        val current =
+            _uiState.value as? LibraryUiState.Success
+                ?: return
+
+        _uiState.value =
+            current.copy(
+                actionError = null
+            )
     }
+}

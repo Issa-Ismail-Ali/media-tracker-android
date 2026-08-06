@@ -42,7 +42,7 @@ interface UserApiService {
 
     @POST("library")
     suspend fun addToLibrary(
-        @Body body: AddLibraryRequest
+        @Body body: AddToLibraryRequest
     ): Response<LibraryItem>
 
     @GET("reviews")
