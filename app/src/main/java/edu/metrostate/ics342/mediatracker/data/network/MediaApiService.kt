@@ -74,6 +74,27 @@ interface MediaApiService {
         @Body body: AddQuoteRequest
     ): Response<Quote>
 
+    @PUT("quotes/{id}")
+    suspend fun updateQuote(
+        @Path("id") quoteId: Int,
+        @Body body: UpdateQuoteRequest
+    ): Response<Quote>
+
+    @DELETE("quotes/{id}")
+    suspend fun deleteQuote(
+        @Path("id") quoteId: Int
+    ): Response<Unit>
+
+    @POST("quotes/{id}/likes")
+    suspend fun likeQuote(
+        @Path("id") quoteId: Int
+    ): Response<Unit>
+
+    @DELETE("quotes/{id}/likes")
+    suspend fun unlikeQuote(
+        @Path("id") quoteId: Int
+    ): Response<Unit>
+
     @PUT("library/{mediaId}")
     suspend fun updateLibraryStatus(
         @Path("mediaId") mediaId: Int,

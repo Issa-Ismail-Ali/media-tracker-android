@@ -38,7 +38,6 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -450,8 +449,7 @@ private fun AddQuoteDialog(
     isSaving: Boolean,
     message: String?,
     onDismiss: () -> Unit,
-    onSave:
-        (
+    onSave: (
         String,
         String,
         Boolean
@@ -476,175 +474,114 @@ private fun AddQuoteDialog(
             }
         },
         title = {
-            Text(
-                text = "Add Quote"
-            )
+            Text(text = "Add Quote")
         },
         text = {
             Column(
-                verticalArrangement =
-                    Arrangement.spacedBy(
-                        12.dp
-                    )
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-
-                /*
-                 * Quote text
-                 */
                 OutlinedTextField(
                     value = quoteText,
-                    onValueChange = {
-                            newText ->
-
-                        if (
-                            newText.length <=
-                            500
-                        ) {
-                            quoteText =
-                                newText
+                    onValueChange = { newText ->
+                        if (newText.length <= 500) {
+                            quoteText = newText
                         }
                     },
-                    label = {
-                        Text(
-                            text =
-                                "Quote"
-                        )
-                    },
+                    label = { Text("Quote") },
                     supportingText = {
-                        Text(
-                            text =
-                                "${quoteText.length}/500"
-                        )
+                        Text("${quoteText.length}/500")
                     },
-                    modifier =
-                        Modifier
-                            .fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth(),
                     minLines = 3,
                     maxLines = 6,
-                    enabled =
-                        !isSaving
+                    enabled = !isSaving
                 )
 
-                /*
-                 * Optional page number
-                 */
                 OutlinedTextField(
-                    value =
-                        pageNumber,
-                    onValueChange = {
-                            newValue ->
-
+                    value = pageNumber,
+                    onValueChange = { newValue ->
                         if (
                             newValue.isBlank() ||
-                            newValue.all {
-                                it.isDigit()
-                            }
+                            newValue.all { it.isDigit() }
                         ) {
-                            pageNumber =
-                                newValue
+                            pageNumber = newValue
                         }
                     },
                     label = {
-                        Text(
-                            text =
-                                "Page number (optional)"
-                        )
+                        Text("Page number (optional)")
                     },
                     singleLine = true,
-                    modifier =
-                        Modifier
-                            .fillMaxWidth(),
-                    enabled =
-                        !isSaving
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = !isSaving
                 )
 
-                /*
-                 * Public/private toggle
-                 */
-                Row(
-                    modifier =
-                        Modifier
-                            .fillMaxWidth(),
-                    verticalAlignment =
-                        Alignment
-                            .CenterVertically,
-                    horizontalArrangement =
-                        Arrangement
-                            .SpaceBetween
-                ) {
-                    Column(
-                        modifier =
-                            Modifier.weight(
-                                1f
-                            )
-                    ) {
-                        Text(
-                            text =
-                                "Public"
-                        )
+                Text(
+                    text = "Visibility",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold
+                )
 
-                        Text(
-                            text =
-                                if (
-                                    isPublic
-                                ) {
-                                    "Other users can see this quote"
-                                } else {
-                                    "Only you can see this quote"
-                                },
-                            style =
-                                MaterialTheme
-                                    .typography
-                                    .bodySmall,
-                            color =
-                                MaterialTheme
-                                    .colorScheme
-                                    .onSurfaceVariant
-                        )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    if (!isPublic) {
+                        Button(
+                            onClick = { isPublic = false },
+                            enabled = !isSaving,
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Text("✓ Private")
+                        }
+                    } else {
+                        OutlinedButton(
+                            onClick = { isPublic = false },
+                            enabled = !isSaving,
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Text("Private")
+                        }
                     }
 
-                    Spacer(
-                        modifier =
-                            Modifier.width(
-                                12.dp
-                            )
-                    )
-
-                    Switch(
-                        checked =
-                            isPublic,
-                        onCheckedChange = {
-                            isPublic = it
-                        },
-                        enabled =
-                            !isSaving
-                    )
+                    if (isPublic) {
+                        Button(
+                            onClick = { isPublic = true },
+                            enabled = !isSaving,
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Text("✓ Public")
+                        }
+                    } else {
+                        OutlinedButton(
+                            onClick = { isPublic = true },
+                            enabled = !isSaving,
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Text("Public")
+                        }
+                    }
                 }
 
-                /*
-                 * Success/error message
-                 */
-                if (
-                    !message.isNullOrBlank()
-                ) {
+                Text(
+                    text =
+                        if (isPublic) {
+                            "Everyone can see this quote."
+                        } else {
+                            "Only you can see this quote."
+                        },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+
+                if (!message.isNullOrBlank()) {
                     Text(
                         text = message,
-                        style =
-                            MaterialTheme
-                                .typography
-                                .bodySmall,
+                        style = MaterialTheme.typography.bodySmall,
                         color =
-                            if (
-                                message ==
-                                "Quote saved."
-                            ) {
-                                MaterialTheme
-                                    .colorScheme
-                                    .primary
+                            if (message == "Quote saved.") {
+                                MaterialTheme.colorScheme.primary
                             } else {
-                                MaterialTheme
-                                    .colorScheme
-                                    .error
+                                MaterialTheme.colorScheme.error
                             }
                     )
                 }
@@ -660,53 +597,32 @@ private fun AddQuoteDialog(
                     )
                 },
                 enabled =
-                    quoteText
-                        .isNotBlank() &&
-                            quoteText.length <=
-                            500 &&
+                    quoteText.isNotBlank() &&
+                            quoteText.length <= 500 &&
                             !isSaving
             ) {
                 if (isSaving) {
                     CircularProgressIndicator(
-                        modifier =
-                            Modifier
-                                .size(
-                                    18.dp
-                                ),
-                        strokeWidth =
-                            2.dp
+                        modifier = Modifier.size(18.dp),
+                        strokeWidth = 2.dp
                     )
 
                     Spacer(
-                        modifier =
-                            Modifier.width(
-                                8.dp
-                            )
+                        modifier = Modifier.width(8.dp)
                     )
 
-                    Text(
-                        text =
-                            "Saving..."
-                    )
+                    Text("Saving...")
                 } else {
-                    Text(
-                        text =
-                            "Save Quote"
-                    )
+                    Text("Save Quote")
                 }
             }
         },
         dismissButton = {
             TextButton(
-                onClick =
-                    onDismiss,
-                enabled =
-                    !isSaving
+                onClick = onDismiss,
+                enabled = !isSaving
             ) {
-                Text(
-                    text =
-                        "Cancel"
-                )
+                Text("Cancel")
             }
         }
     )

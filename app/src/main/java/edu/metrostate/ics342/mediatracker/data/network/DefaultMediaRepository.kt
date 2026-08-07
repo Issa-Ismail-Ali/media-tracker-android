@@ -308,11 +308,12 @@ class DefaultMediaRepository(
     }
 
     suspend fun getQuotes(
+        publicOnly: Boolean? = null,
         after: String? = null
     ): QuotePage {
         val response =
             api.getQuotes(
-                publicOnly = null,
+                publicOnly = publicOnly,
                 after = after
             )
 
@@ -325,9 +326,88 @@ class DefaultMediaRepository(
 
         return QuotePage(
             items = response.body().orEmpty(),
-            nextCursor = response.headers()["X-Next-Cursor"],
-            hasMore = response.headers()["X-Has-More"] == "true"
+            nextCursor =
+                response.headers()["X-Next-Cursor"],
+            hasMore =
+                response.headers()["X-Has-More"] == "true"
         )
+    }
+    suspend fun updateQuote(
+        quoteId: Int,
+        quoteText: String,
+        pageNumber: Int?,
+        isPublic: Boolean
+    ): Quote {
+        val response =
+            api.updateQuote(
+                quoteId = quoteId,
+                body = UpdateQuoteRequest(
+                    quoteText = quoteText,
+                    pageNumber = pageNumber,
+                    isPublic = isPublic
+                )
+            )
+
+        if (!response.isSuccessful) {
+            error(
+                parseErrorMessage(response)
+                    ?: "Failed to update quote (${response.code()})"
+            )
+        }
+
+        return response.body()
+            ?: error("Empty response updating quote")
+    }
+
+    suspend fun deleteQuote(
+        quoteId: Int
+    ) {
+        val response =
+            api.deleteQuote(quoteId)
+
+        if (!response.isSuccessful &&
+            response.code() != 404
+        ) {
+            error(
+                parseErrorMessage(response)
+                    ?: "Failed to delete quote (${response.code()})"
+            )
+        }
+    }
+
+    suspend fun likeQuote(
+        quoteId: Int
+    ) {
+        val response =
+            api.likeQuote(quoteId)
+
+        // 409 = already liked, which is okay.
+        if (
+            !response.isSuccessful &&
+            response.code() != 409
+        ) {
+            error(
+                parseErrorMessage(response)
+                    ?: "Failed to like quote (${response.code()})"
+            )
+        }
+    }
+
+    suspend fun unlikeQuote(
+        quoteId: Int
+    ) {
+        val response =
+            api.unlikeQuote(quoteId)
+
+        if (
+            !response.isSuccessful &&
+            response.code() != 404
+        ) {
+            error(
+                parseErrorMessage(response)
+                    ?: "Failed to unlike quote (${response.code()})"
+            )
+        }
     }
     suspend fun removeFavorite(
         mediaId: Int
