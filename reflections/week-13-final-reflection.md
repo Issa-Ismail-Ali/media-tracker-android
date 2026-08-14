@@ -4,7 +4,8 @@
 **Submitted with:** Your final pull request
 **Worth:** 50 points
 
----
+Issa Ali
+08/13/2026
 
 This document is your final written submission for the course. It is not a summary of the syllabus. It is not a list of features you implemented. It is a record of what you actually learned, written by you, about your specific experience building this specific app this semester.
 
