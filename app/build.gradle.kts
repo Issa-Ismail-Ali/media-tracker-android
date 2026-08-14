@@ -53,8 +53,14 @@ dependencies {
     implementation(libs.androidx.datastore.preferences)
     implementation(libs.kotlinx.coroutines.android)
 
+    // Unit tests
     testImplementation(libs.junit)
+    testImplementation("io.mockk:mockk-jvm:1.13.17")
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.11.0")
+
+    // Android tests
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
+
     debugImplementation(libs.androidx.ui.tooling)
 }

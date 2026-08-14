@@ -23,6 +23,7 @@ import edu.metrostate.ics342.mediatracker.ui.profile.UserProfileScreen
 import edu.metrostate.ics342.mediatracker.ui.review.WriteReviewScreen
 import edu.metrostate.ics342.mediatracker.ui.search.SearchScreen
 import edu.metrostate.ics342.mediatracker.ui.settings.SettingsScreen
+import edu.metrostate.ics342.mediatracker.ui.quotes.QuotesScreen
 
 private val bottomNavRoutes = setOf(
     Routes.ACTIVITY_FEED,
@@ -126,7 +127,12 @@ fun MediaTrackerNavGraph(navController: NavHostController) {
                     }
                 )
             ) { backStackEntry ->
-                val mediaId = backStackEntry.arguments?.getInt("mediaId") ?: return@composable
+
+                val mediaId =
+                    backStackEntry.arguments?.getInt("mediaId")
+                        ?: return@composable
+
+                println("NAVGRAPH MEDIA ID: $mediaId")
 
                 MediaDetailScreen(
                     mediaId = mediaId,
@@ -160,10 +166,19 @@ fun MediaTrackerNavGraph(navController: NavHostController) {
             composable(Routes.MY_PROFILE) {
                 MyProfileScreen(
                     onEditProfile = {
-                        navController.navigate(Routes.EDIT_PROFILE)
+                        navController.navigate(
+                            Routes.EDIT_PROFILE
+                        )
                     },
                     onSettingsClick = {
-                        navController.navigate(Routes.SETTINGS)
+                        navController.navigate(
+                            Routes.SETTINGS
+                        )
+                    },
+                    onQuotesClick = {
+                        navController.navigate(
+                            Routes.QUOTES
+                        )
                     }
                 )
             }
@@ -203,6 +218,10 @@ fun MediaTrackerNavGraph(navController: NavHostController) {
                         navController.navigate("user_profile/$userId")
                     }
                 )
+            }
+
+            composable(Routes.QUOTES) {
+                QuotesScreen()
             }
 
             composable(Routes.SETTINGS) {

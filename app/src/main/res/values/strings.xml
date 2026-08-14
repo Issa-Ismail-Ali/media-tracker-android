@@ -104,4 +104,17 @@
     <!-- Search -->
     <string name="search_results_count">%1$d results</string>
 
+    <!-- Media Detail -->
+    <string name="detail_add_want_to">+ Want To</string>
+    <string name="detail_save">Save</string>
+    <string name="detail_saved">Saved</string>
+    <string name="detail_about">About</string>
+    <string name="detail_not_yet_rated">Not yet rated</string>
+    <string name="detail_reviews_count">Reviews (%1$d)</string>
+    <string name="detail_retry">Retry</string>
+    <string name="detail_write_review">+ Write Review</string>
+    <string name="detail_in_library">In Library</string>
+    <string name="detail_adding">Adding...</string>
+    <string name="detail_saving">Saving...</string>
+
 </resources>

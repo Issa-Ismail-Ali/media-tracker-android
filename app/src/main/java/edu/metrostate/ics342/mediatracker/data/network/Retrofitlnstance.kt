@@ -1,6 +1,8 @@
 package edu.metrostate.ics342.mediatracker.data.network
 
 import com.jakewharton.retrofit2.converter.kotlinx.serialization.asConverterFactory
+import edu.metrostate.ics342.mediatracker.data.SessionRepository
+import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.Json
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
@@ -9,24 +11,77 @@ import retrofit2.Retrofit
 
 object RetrofitInstance {
 
-    private val json = Json {
+    val json = Json {
         ignoreUnknownKeys = true
         encodeDefaults = true
     }
 
-    private val client = OkHttpClient.Builder()
-        .addInterceptor(HttpLoggingInterceptor().apply {
-            level = HttpLoggingInterceptor.Level.BODY
-        })
-        .build()
+    private val loggingInterceptor =
+        HttpLoggingInterceptor().apply {
+            // BASIC avoids printing passwords and access tokens.
+            level = HttpLoggingInterceptor.Level.BASIC
+        }
 
-    private val retrofit = Retrofit.Builder()
-        .baseUrl(ApiConstants.BASE_URL)
-        .client(client)
-        .addConverterFactory(
-            json.asConverterFactory("application/json; charset=utf-8".toMediaType())
+    private val publicClient =
+        OkHttpClient.Builder()
+            .addInterceptor(loggingInterceptor)
+            .build()
+
+    private val publicRetrofit =
+        Retrofit.Builder()
+            .baseUrl(ApiConstants.BASE_URL)
+            .client(publicClient)
+            .addConverterFactory(
+                json.asConverterFactory(
+                    "application/json; charset=utf-8".toMediaType()
+                )
+            )
+            .build()
+
+    val userApiService: UserApiService =
+        publicRetrofit.create(UserApiService::class.java)
+
+    fun createMediaApiService(
+        sessionRepository: SessionRepository
+    ): MediaApiService {
+
+        val authenticatedClient =
+            OkHttpClient.Builder()
+                .addInterceptor { chain ->
+                    val accessToken =
+                        runBlocking {
+                            sessionRepository.getAccessToken()
+                        }
+
+                    val requestBuilder =
+                        chain.request()
+                            .newBuilder()
+
+                    if (!accessToken.isNullOrBlank()) {
+                        requestBuilder.header(
+                            "Authorization",
+                            "Bearer $accessToken"
+                        )
+                    }
+
+                    chain.proceed(requestBuilder.build())
+                }
+                .addInterceptor(loggingInterceptor)
+                .build()
+
+        val authenticatedRetrofit =
+            Retrofit.Builder()
+                .baseUrl(ApiConstants.BASE_URL)
+                .client(authenticatedClient)
+                .addConverterFactory(
+                    json.asConverterFactory(
+                        "application/json; charset=utf-8".toMediaType()
+                    )
+                )
+                .build()
+
+        return authenticatedRetrofit.create(
+            MediaApiService::class.java
         )
-        .build()
-
-    val userApiService: UserApiService = retrofit.create(UserApiService::class.java)
+    }
 }
